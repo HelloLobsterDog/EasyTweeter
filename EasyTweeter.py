@@ -8,6 +8,10 @@ import logging.handlers
 
 import tweepy
 
+
+__version__ = '0.9.0'
+
+
 class EasyTweeterException(RuntimeError):
 	''' Application-specific exception used to wrap errors for the bot class. '''
 	
