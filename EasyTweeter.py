@@ -2,6 +2,7 @@ import configparser
 import codecs
 import time
 import os
+import os.path
 import sys
 import logging
 import logging.handlers
@@ -9,7 +10,7 @@ import logging.handlers
 import tweepy
 
 
-__version__ = '0.9.0'
+__version__ = '0.9.1'
 
 
 class EasyTweeterException(RuntimeError):
@@ -121,7 +122,7 @@ class EasyTweeter():
 		'''
 		self.logger.info('[NEW] message ' + self._getLinkToStatus(favoritedTweet) + " has " + str(favoritedTweet.favorite_count) + " favorites, which changed from " + str(previousNumFavorites))
 	
-	def handleReply(self, tweet):
+	def handleReply(self, reply):
 		'''
 		This method is called when the bot receives a reply to one of it's messages, and is passed the reply tweet.
 		It exists so subclasses can override it to change it's behavior or provide new functionality.
@@ -129,7 +130,7 @@ class EasyTweeter():
 		'''
 		self.logger.info("[NEW] Reply from @" + reply.author.screen_name + " - " + self._getLinkToStatus(reply) + " - Text: " + reply.text)
 	
-	def handleRetweet(self, tweet):
+	def handleRetweet(self, retweet):
 		'''
 		This method is called when a status the bot made was retweeted, and is passed the tweet which was retweeted.
 		It exists so subclasses can override it to change it's behavior or provide new functionality.
@@ -154,10 +155,14 @@ class EasyTweeter():
 		else:
 			logger = logging.getLogger('EasyTweeter')
 		logger.setLevel(logging.INFO)
+		# file
 		fileHandler = logging.handlers.TimedRotatingFileHandler(self.getLogFilename(), when = 'midnight', encoding = 'utf-8')
+		fileHandler.setFormatter(logging.Formatter('%(asctime)s [%(levelname)-5s] %(name)s: %(message)s'))
 		logger.addHandler(fileHandler)
-		formatter = logging.Formatter('%(asctime)s [%(levelname)-5s] %(name)s: %(message)s')
-		fileHandler.setFormatter(formatter)
+		# console
+		consoleHandler = logging.StreamHandler()
+		consoleHandler.setFormatter(logging.Formatter('[%(levelname)s] %(name)s: %(message)s'))
+		logger.addHandler(consoleHandler)
 		return logger
 		
 	def _initState(self):
@@ -345,11 +350,6 @@ class EasyTweeter():
 			else:
 				self.logger.info('Skipping checking for new followers.')
 				
-			if replies:
-				self.checkReplies()
-			else:
-				self.logger.info('Skipping checking for new replies.')
-				
 			if favorites:
 				self.checkFavorites()
 			else:
@@ -359,10 +359,15 @@ class EasyTweeter():
 				self.checkDirectMessages()
 			else:
 				self.logger.info('Skipping checking for new direct messages.')
+				
+			if replies:
+				self.checkReplies()
+			else:
+				self.logger.info('Skipping checking for new replies.')
 		
 	###############################################################################################################
 	# These are called by checkForUpdates, but you can call them yourself if you want to for some reason:
-	def checkDirectMessages(self, maxMessagesLoaded = 100, failureOnMissingPermission = False):
+	def checkDirectMessages(self, maxMessagesLoaded = 50, failureOnMissingPermission = False):
 		'''
 		Checks for new direct messages to the authenticated user.
 		Each new direct message is logged, and handleDM is called for each.
@@ -435,7 +440,7 @@ class EasyTweeter():
 			self.logger.exception('Exception encountered while attempting to check direct messages')
 			raise e
 			
-	def checkNewFollowers(self, maxFollowersChecked = 100):
+	def checkNewFollowers(self, maxFollowersChecked = 50):
 		'''
 		Checks for new followers to the twitter account.
 		Each new follower is logged and handleFollower is called on each.
@@ -546,7 +551,7 @@ class EasyTweeter():
 			self.logger.exception('Exception encountered while attempting to check for retweets')
 			raise e
 		
-	def checkReplies(self, maxMessagesLoaded = 200):
+	def checkReplies(self, maxMessagesLoaded = 100):
 		'''
 		Checks for replies to posts made by the authenticated user.
 		Each new reply is logged and the method handleReply is called on each.
