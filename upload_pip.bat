@@ -7,7 +7,7 @@ call clean.bat
 echo building distributions...
 python setup.py sdist bdist_wheel
 
-echo Pausing. Inspect the above output. Ctrl-C to terminate if you have reservations.
+echo Pausing. Inspect the above output. Ctrl-C to terminate if you have concerns about the quality of the code about to be uploaded.
 pause
 
 echo Uploading...

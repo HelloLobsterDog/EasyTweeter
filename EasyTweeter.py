@@ -10,7 +10,7 @@ import logging.handlers
 import tweepy
 
 
-__version__ = '0.9.1'
+__version__ = '0.10.0'
 
 
 class EasyTweeterException(RuntimeError):
@@ -311,6 +311,68 @@ class EasyTweeter():
 		except Exception as e:
 			# log it and rethrow it, just so we can log exceptions without our users needing to do it
 			self.logger.exception('Exception encountered while attempting to tweet')
+			raise e
+			
+		if tweet != None:
+			self.handleTweet(tweet) # TODO: error handling for hook methods?
+			
+	def tweetMedia(self, pathToMedia, message = None):
+		'''
+		Uploads and then tweets the media at the file path provided, including an optional text message (a string).
+		The media can be an image, a gif, or a video file.
+		
+		Raises a ValueError is the path provided does not exist.
+		Raises a ValueError if the message is over the character limit, None, or empty.
+		If not connected to twitter yet, will attempt to load credentials out of the file credentials.ini in the configuration
+		directory provided to the constrctor, and connect with those.
+		'''
+		tweet = None
+		try:
+			# error checking
+			if self.api == None:
+				self.connectFromConfig(self.getCredentialsConfigFilename())
+			elif pathToMedia == None:
+				raise ValueError('pathToMedia cannot be None.')
+			elif not os.path.exists(pathToMedia):
+				raise ValueError('pathToMedia points to a file which does not exist.')
+			elif message != None and len(message) > EasyTweeter.CHARACTER_LIMIT:
+				raise ValueError('message "' + str(message) + '" is over the ' + EasyTweeter.CHARACTER_LIMIT + ' character limit (it is ' + str(len(message)) + ' characters long).')
+			elif message != None and len(message) <= 0:
+				raise ValueError('Message cannot be empty.')
+				
+			retry = self.retries
+			while retry > 0:
+				try:
+					# upload
+					self.logger.info("Uploading media from path: " + str(pathToMedia))
+					response = self.api.media_upload(pathToMedia)
+					mediaID = str(response.media_id)
+					self.logger.info("Successfully uploaded media! Media id: " + mediaID)
+					# tweet
+					if message == None:
+						self.logger.info('Tweeting media: ' + str(pathToMedia) + " (id " + mediaID + ")")
+						tweet = self.api.update_status(media_ids=[mediaID])
+						self.logger.info('Tweeted media successfully')
+					else:
+						self.logger.info('Tweeting media: ' + str(pathToMedia) + " (id " + mediaID + ") with message: " + message)
+						tweet = self.api.update_status(media_ids=[mediaID], status = message)
+						self.logger.info('Tweeted media with message successfully')
+					
+					break
+				except tweepy.RateLimitError as e:
+					# handle rate limiting
+					retry -= 1
+					self.logger.warning('Twitter API rate limit reached.')
+					self.logger.debug('Twitter API provides the following rate limit status information: ' + str(self.api.rate_limit_status()))
+					if retry > 0:
+						self.logger.info('Sleeping for ' + str(self.sleep) + ' seconds before retrying. Retries left: ' + str(retry))
+						time.sleep(self.sleep)
+					else:
+						raise RateLimitRetriesExceeded('Retries have been exceeded.')
+						
+		except Exception as e:
+			# log it and rethrow it, just so we can log exceptions without our users needing to do it
+			self.logger.exception('Exception encountered while attempting to tweet media')
 			raise e
 			
 		if tweet != None:
