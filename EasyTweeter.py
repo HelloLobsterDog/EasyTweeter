@@ -10,7 +10,7 @@ import logging.handlers
 import tweepy
 
 
-__version__ = '0.10.0'
+__version__ = '0.10.1'
 
 
 class EasyTweeterException(RuntimeError):
@@ -21,6 +21,10 @@ class RateLimitRetriesExceeded(EasyTweeterException):
 	
 class MissingPermissionsError(EasyTweeterException):
 	''' exception thrown when the api connection failed due to API error code 403s '''
+	
+class MediaTooLargeError(EasyTweeterException):
+	''' exception thrown when the media passed to tweetMedia is rejected from twitter for being too large. '''
+
 
 
 class EasyTweeter():
@@ -370,6 +374,17 @@ class EasyTweeter():
 					else:
 						raise RateLimitRetriesExceeded('Retries have been exceeded.')
 						
+		except tweepy.error.TweepError as e:
+			# check for whether it's because the file is too large
+			if 'File is too big' in str(e):
+				# log it and rethrow it in a more user friendly handlable exception type
+				self.logger.exception('Twitter rejected media upload because the filesize is too large.')
+				raise MediaTooLargeError('Twitter rejected media upload because the filesize is too large.')
+			else:
+				# otherwise just log it and rethrow it like a regular exception
+				self.logger.exception('Exception encountered while attempting to tweet media')
+				raise e
+			
 		except Exception as e:
 			# log it and rethrow it, just so we can log exceptions without our users needing to do it
 			self.logger.exception('Exception encountered while attempting to tweet media')
