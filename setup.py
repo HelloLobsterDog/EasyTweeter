@@ -15,7 +15,7 @@ setup(name='EasyTweeter',
 	  license='MIT',
       author='Daniel Westbrook',
       author_email='dan@pixelatedawesome.com',
-      url='https://github.com/HelloLobsterDog/EasyTweeter',
+      url='http://www.pixelatedawesome.com/projects/EasyTweeter/',
       py_modules=['EasyTweeter'],
       classifiers=[
           "Development Status :: 4 - Beta",
